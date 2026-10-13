@@ -10,6 +10,7 @@ use nom_kconfig::KconfigFile;
 use z3::SatResult;
 
 mod checks;
+mod dead_subrange;
 mod unmet;
 
 fn failure(check: Check, message: impl Into<String>) -> Finding {
@@ -69,6 +70,9 @@ pub fn check_model(
         SatResult::Sat => {}
     }
     findings.extend(checks::check(model, args));
+    if args.is_enabled(Check::DeadSubrange) {
+        findings.extend(dead_subrange::check(model));
+    }
     if args.is_enabled(Check::UnmetDependency) {
         findings.extend(unmet::check(model, witness_directory));
     }

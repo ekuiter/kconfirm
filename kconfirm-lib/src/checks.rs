@@ -54,6 +54,9 @@ pub enum Check {
     DuplicateRange,
     /// Unreachable but not duplicate `range` attribute. May cause misconfiguration.
     DeadRange,
+    /// An interval within declared int/hex ranges that no valid configuration can reach.
+    /// Available in SMT `--confirm` mode.
+    DeadSubrange,
     /// Duplicate `select` attribute for the same config option. Redundant.
     DuplicateSelect,
     /// Unreachable but not duplicate `select` attribute. May cause misconfiguration.
@@ -98,6 +101,7 @@ impl Check {
             Check::DuplicateDependency => "duplicate_dependency",
             Check::DuplicateRange => "duplicate_range",
             Check::DeadRange => "dead_range",
+            Check::DeadSubrange => "dead_subrange",
             Check::DuplicateSelect => "duplicate_select",
             Check::DeadSelect => "dead_select",
             Check::DeadDefault => "dead_default",
@@ -136,6 +140,7 @@ pub fn parse_check(name: &str) -> Option<Check> {
         "duplicate_dependency" => Some(Check::DuplicateDependency),
         "duplicate_range" => Some(Check::DuplicateRange),
         "dead_range" => Some(Check::DeadRange),
+        "dead_subrange" => Some(Check::DeadSubrange),
         "duplicate_select" => Some(Check::DuplicateSelect),
         "dead_select" => Some(Check::DeadSelect),
         "dead_default" => Some(Check::DeadDefault),

@@ -141,6 +141,14 @@ fn main() -> io::Result<()> {
             )
             .exit();
     }
+    if args.lint && checks.is_enabled(Check::DeadSubrange) {
+        Args::command()
+            .error(
+                clap::error::ErrorKind::ArgumentConflict,
+                "dead_subrange is only available in --confirm mode",
+            )
+            .exit();
+    }
     let mut findings = Vec::new();
     if let Some(root) = &args.linux_dir_path {
         let available = kconfirm_linux::architectures(root)?;

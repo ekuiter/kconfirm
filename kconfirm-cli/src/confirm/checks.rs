@@ -43,6 +43,7 @@ const SEMANTIC_CHECKS: &[Check] = &[
 
 pub(crate) fn needs_solver(args: &AnalysisArgs) -> bool {
     args.is_enabled(Check::UnmetDependency)
+        || args.is_enabled(Check::DeadSubrange)
         || SEMANTIC_CHECKS.iter().any(|&check| args.is_enabled(check))
 }
 

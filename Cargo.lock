@@ -335,6 +335,7 @@ dependencies = [
  "log",
  "nom-kconfig",
  "z3",
+ "z3-sys",
  "z3-ternary",
 ]
 
