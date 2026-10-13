@@ -3,6 +3,8 @@ use crate::confirm::check_model;
 use kconfirm_smt::encode_source;
 use nom_kconfig::{KconfigFile, KconfigInput, entry::Source, parse_kconfig};
 
+mod out_of_range_default;
+
 const INPUTS: &str = "config A\n bool \"a\"\nconfig B\n bool \"b\"\nconfig C\n bool \"c\"\n";
 const MODULES: &str = "config MODULES\n bool\n default y\n modules\n";
 
@@ -373,7 +375,11 @@ fn disabled_checks_are_independent_and_queries_do_not_leak_between_runs() {
 fn inconsistent_models_never_prove_all_attributes_dead_or_duplicate() {
     let model = model("config X\n bool\n default y\n default n\n");
     model.solver().assert(Bool::from_bool(false));
-    for check in [Check::DeadDefault, Check::DuplicateDefault] {
+    for check in [
+        Check::DeadDefault,
+        Check::DuplicateDefault,
+        Check::OutOfRangeDefault,
+    ] {
         let mut args = AnalysisArgs::new();
         args.enable_check(check);
         let findings = check_model(&model, &args, None);

@@ -28,6 +28,7 @@ want on an [`AnalysisArgs`] value.
 | String id                 | Check                          | Severity | Description |
 |---------------------------|--------------------------------|----------|-------------|
 | `dead_default`            | `Check::DeadDefault`           | Warning  | A `default` that can never be reached because an earlier one always takes priority. |
+| `out_of_range_default`    | `Check::OutOfRangeDefault`     | Warning  | An active int/hex default can fall outside its active range before clamping (`kconfirm-cli --confirm` only). |
 | `duplicate_default`       | `Check::DuplicateDefault`      | Warning  | A `default` value/condition pair that repeats an earlier one. |
 | `duplicate_default_value` | `Check::DuplicateDefaultValue` | Style    | Multiple `default`s with the same value but different conditions (hint: combine with `||`). |
 | `dead_select`             | `Check::DeadSelect`            | Warning  | A conditional `select` made unreachable by an unconditional `select` of the same symbol. |
@@ -36,6 +37,7 @@ want on an [`AnalysisArgs`] value.
 | `dead_imply`              | `Check::DeadImply`             | Warning  | A conditional `imply` made unreachable by an unconditional `imply` of the same symbol. |
 | `duplicate_imply`         | `Check::DuplicateImply`        | Warning  | A repeated `imply` of the same symbol (and condition). |
 | `dead_range`              | `Check::DeadRange`             | Warning  | A conditional `range` made unreachable by an unconditional `range`. |
+| `dead_subrange`           | `Check::DeadSubrange`          | Warning  | An unreachable interval within declared int/hex ranges (`kconfirm-cli --confirm` only). |
 | `duplicate_range`         | `Check::DuplicateRange`        | Warning  | A repeated `range` with the same bounds (and condition). |
 | `reverse_range`           | `Check::ReverseRange`          | Warning  | A `range` whose lower bound is greater than its upper bound. No valid value exists. |
 | `duplicate_dependency`    | `Check::DuplicateDependency`   | Warning  | A dependency listed more than once for the same option. |

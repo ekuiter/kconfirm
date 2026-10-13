@@ -35,6 +35,7 @@ const SEMANTIC_CHECKS: &[Check] = &[
     Check::DeadSelect,
     Check::DuplicateDefault,
     Check::DeadDefault,
+    Check::OutOfRangeDefault,
     Check::DuplicateDefaultValue,
     Check::ConstantCondition,
     Check::DuplicateImply,
@@ -274,6 +275,7 @@ impl Checker<'_> {
                             Check::DuplicateDefault,
                             Check::DeadDefault,
                             Check::DuplicateDefaultValue,
+                            Check::OutOfRangeDefault,
                         ]) =>
                     {
                         let value = match ty {
@@ -300,8 +302,11 @@ impl Checker<'_> {
                         });
                     }
                     Attribute::Range(range)
-                        if self.enabled(&[Check::DeadRange, Check::DuplicateRange])
-                            && matches!(ty, Type::Int(_) | Type::Hex(_)) =>
+                        if self.enabled(&[
+                            Check::DeadRange,
+                            Check::DuplicateRange,
+                            Check::OutOfRangeDefault,
+                        ]) && matches!(ty, Type::Int(_) | Type::Hex(_)) =>
                     {
                         let is_hex = matches!(ty, Type::Hex(_));
                         ranges.push(RangeProperty {
@@ -357,6 +362,7 @@ impl Checker<'_> {
         }
         self.defaults(symbol, &defaults)?;
         self.ranges(symbol, &ranges)?;
+        self.out_of_range_defaults(symbol, &defaults, &ranges)?;
         self.edges(symbol, &selects, Check::DuplicateSelect, Check::DeadSelect)?;
         self.edges(symbol, &implies, Check::DuplicateImply, Check::DeadImply)?;
         if self.args.is_enabled(Check::SelectVisible) {
@@ -453,6 +459,13 @@ impl Checker<'_> {
     }
 
     fn defaults(&mut self, symbol: &str, defaults: &[DefaultProperty]) -> Result<(), ()> {
+        if !self.enabled(&[
+            Check::DeadDefault,
+            Check::DuplicateDefault,
+            Check::DuplicateDefaultValue,
+        ]) {
+            return Ok(());
+        }
         let dead_defaults = self.args.is_enabled(Check::DeadDefault);
         let check = if dead_defaults {
             Check::DeadDefault
@@ -543,6 +556,9 @@ impl Checker<'_> {
     }
 
     fn ranges(&mut self, symbol: &str, ranges: &[RangeProperty]) -> Result<(), ()> {
+        if !self.enabled(&[Check::DeadRange, Check::DuplicateRange]) {
+            return Ok(());
+        }
         let mut previous = Bool::from_bool(false);
         for (index, range) in ranges.iter().enumerate() {
             if !self.possible(symbol, Check::DeadRange, range.guard.clone())? {
@@ -587,6 +603,45 @@ impl Checker<'_> {
                 }
             }
             previous = bool_or(&previous, &range.guard);
+        }
+        Ok(())
+    }
+
+    fn out_of_range_defaults(
+        &mut self,
+        symbol: &str,
+        defaults: &[DefaultProperty],
+        ranges: &[RangeProperty],
+    ) -> Result<(), ()> {
+        let check = Check::OutOfRangeDefault;
+        if !self.args.is_enabled(check) || defaults.is_empty() || ranges.is_empty() {
+            return Ok(());
+        }
+        let mut previous_defaults = Bool::from_bool(false);
+        for default in defaults {
+            let hit = default.condition.gt_n();
+            let active_default = bool_and(&hit, &previous_defaults.not());
+            previous_defaults = bool_or(&previous_defaults, &hit);
+            let Z3Types::Integer(value) = &default.value else {
+                continue;
+            };
+            let mut previous_ranges = Bool::from_bool(false);
+            for range in ranges {
+                let active_range = bool_and(&range.guard, &previous_ranges.not());
+                previous_ranges = bool_or(&previous_ranges, &range.guard);
+                let outside = bool_or(&value.lt(&range.lower), &value.gt(&range.upper));
+                let reachable = bool_and(&bool_and(&active_default, &active_range), &outside);
+                if self.possible(symbol, check, reachable)? {
+                    self.report(
+                        symbol,
+                        check,
+                        format!(
+                            "default {} can be outside active range {} before clamping",
+                            default.text, range.text
+                        ),
+                    );
+                }
+            }
         }
         Ok(())
     }

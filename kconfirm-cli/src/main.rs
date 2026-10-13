@@ -141,13 +141,15 @@ fn main() -> io::Result<()> {
             )
             .exit();
     }
-    if args.lint && checks.is_enabled(Check::DeadSubrange) {
-        Args::command()
-            .error(
-                clap::error::ErrorKind::ArgumentConflict,
-                "dead_subrange is only available in --confirm mode",
-            )
-            .exit();
+    for check in [Check::DeadSubrange, Check::OutOfRangeDefault] {
+        if args.lint && checks.is_enabled(check) {
+            Args::command()
+                .error(
+                    clap::error::ErrorKind::ArgumentConflict,
+                    format!("{} is only available in --confirm mode", check.as_str()),
+                )
+                .exit();
+        }
     }
     let mut findings = Vec::new();
     if let Some(root) = &args.linux_dir_path {

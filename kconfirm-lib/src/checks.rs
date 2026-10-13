@@ -65,6 +65,9 @@ pub enum Check {
     DuplicateDefault,
     /// Unreachable but not duplicate `default` attribute. May cause misconfiguration.
     DeadDefault,
+    /// An active int/hex default can fall outside the active range before kconfig adjusts it.
+    /// Available in SMT `--confirm` mode.
+    OutOfRangeDefault,
     /// Style: multiple `default` attributes have the same value, but different conditions.
     /// May be combined into a single `default` attribute.
     DuplicateDefaultValue,
@@ -105,6 +108,7 @@ impl Check {
             Check::DuplicateSelect => "duplicate_select",
             Check::DeadSelect => "dead_select",
             Check::DeadDefault => "dead_default",
+            Check::OutOfRangeDefault => "out_of_range_default",
             Check::ConstantCondition => "constant_condition",
             Check::DuplicateDefault => "duplicate_default",
             Check::DuplicateDefaultValue => "duplicate_default_value",
@@ -144,6 +148,7 @@ pub fn parse_check(name: &str) -> Option<Check> {
         "duplicate_select" => Some(Check::DuplicateSelect),
         "dead_select" => Some(Check::DeadSelect),
         "dead_default" => Some(Check::DeadDefault),
+        "out_of_range_default" => Some(Check::OutOfRangeDefault),
         "constant_condition" => Some(Check::ConstantCondition),
         "duplicate_default" => Some(Check::DuplicateDefault),
         "duplicate_default_value" => Some(Check::DuplicateDefaultValue),
