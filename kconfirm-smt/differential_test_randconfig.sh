@@ -11,22 +11,24 @@
 # - base SMT model and evaluated macros (generated once per invocation)
 #   saved as differential-results/model.smt2 and differential-results/macros.txt
 #
-# usage:
-#   bash kconfirm-smt/generate_random_seeds.sh > random-seeds.txt
-#   bash kconfirm-smt/differential_test_randconfig.sh [RUNS] [SEEDS_FILE]
+# usage (from kconfirm-smt/):
+#   bash generate_random_seeds.sh 2000 > random-seeds.txt
+#   bash differential_test_randconfig.sh [RUNS] [SEEDS_FILE]
 #
 # Uses the first RUNS seeds in file order, including duplicates.
 # Defaults: RUNS=1000, SEEDS_FILE=random-seeds.txt (or $SEEDS_FILE).
 #
 # environment:
 #   LINUX   kernel source tree      (default: evaluation/linux-randconfig)
-#   BINARY  kconfirm-smt binary     (default: target/release/kconfirm-smt)
+#   BINARY  kconfirm-smt binary     (default: ../target/release/kconfirm-smt relative to this script)
 #   ARCH    architecture to test    (default: x86_64)
 
 set -u
 
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)" || exit 2
+
 LINUX="${LINUX:-evaluation/linux-randconfig}"
-BINARY="${BINARY:-target/release/kconfirm-smt}"
+BINARY="${BINARY:-$SCRIPT_DIR/../target/release/kconfirm-smt}"
 ARCH="${ARCH:-x86_64}"
 
 RUNS="${1:-1000}"

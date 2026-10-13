@@ -13,9 +13,9 @@
 # - preserves all recomputed configs
 # - preserves metadata and run summary
 #
-# usage:
-#   bash kconfirm-smt/generate_random_seeds.sh > random-seeds.txt
-#   bash kconfirm-smt/differential_test_model_config.sh [RUNS] [SEEDS_FILE]
+# usage (from kconfirm-smt/):
+#   bash generate_random_seeds.sh 2000 > random-seeds.txt
+#   bash differential_test_model_config.sh [RUNS] [SEEDS_FILE]
 #
 # Uses the first RUNS seeds in file order, including duplicates.
 # Defaults: RUNS=1000, SEEDS_FILE=random-seeds.txt (or $SEEDS_FILE).
@@ -24,8 +24,10 @@
 
 set -u
 
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)" || exit 2
+
 LINUX="${LINUX:-evaluation/linux-model}"
-BINARY="${BINARY:-target/release/kconfirm-smt}"
+BINARY="${BINARY:-$SCRIPT_DIR/../target/release/kconfirm-smt}"
 ARCH="${ARCH:-x86_64}"
 
 RUNS="${1:-1000}"
