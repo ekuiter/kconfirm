@@ -65,6 +65,23 @@ for index in "${!seeds[@]}"; do
     fi
 done
 
+if [ ! -x "$BINARY" ]; then
+    echo "error: kconfirm-smt binary not found at $BINARY (build it, or set BINARY=)" >&2
+    exit 2
+fi
+
+# A fresh kernel checkout needs the lexer and parser generators to build conf.
+# Fail before cloning Linux or exporting a model when the tools are missing.
+missing_tools=()
+for tool in make flex bison; do
+    command -v "$tool" >/dev/null 2>&1 || missing_tools+=("$tool")
+done
+if [ "${#missing_tools[@]}" -ne 0 ]; then
+    echo "error: required commands not found: ${missing_tools[*]}" >&2
+    echo "Enter the project's development shell with 'nix develop', or install the missing tools." >&2
+    exit 2
+fi
+
 LINUX_REPO="git://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git"
 LINUX_BRANCH="v7.2.10"
 
@@ -98,12 +115,6 @@ mkdir -p "$ITERATIONS_DIR"
 mkdir -p "$FAILURES_DIR"
 
 printf '%s\n' "${seeds[@]:0:RUNS}" > "$RESULTS_DIR/seeds.txt" || exit 2
-
-
-if [ ! -x "$BINARY" ]; then
-    echo "error: kconfirm-smt binary not found at $BINARY (build it, or set BINARY=)" >&2
-    exit 2
-fi
 
 
 #
@@ -180,6 +191,7 @@ for i in $(seq 1 "$RUNS"); do
         KCONFIG_CONFIG="$cfg" \
         make -C "$LINUX" ARCH="$ARCH" randconfig 2>&1
     )"
+    randconfig_status=$?
 
     iteration_name="$(printf "%06d-seed%s" "$i" "${seed:-unknown}")"
     iteration_dir="$ITERATIONS_DIR/$iteration_name"
@@ -194,15 +206,26 @@ for i in $(seq 1 "$RUNS"); do
     # Save randconfig generation output
     printf '%s\n' "$randconfig_output" \
         > "$iteration_dir/randconfig.log"
+    printf '%s\n' "$randconfig_status" > "$iteration_dir/randconfig.exit-status"
 
 
 
-    if [ ! -s "$cfg" ]; then
+    if [ "$randconfig_status" -ne 0 ] || [ ! -s "$cfg" ]; then
 
         echo "FAILED_RANDCONFIG" \
             > "$iteration_dir/status.txt"
 
-        echo "[$i/$RUNS] randconfig produced no configuration"
+        if [ "$randconfig_status" -ne 0 ]; then
+            echo "[$i/$RUNS] make randconfig failed (exit $randconfig_status); see $iteration_dir/randconfig.log" >&2
+        else
+            echo "[$i/$RUNS] randconfig produced no configuration; see $iteration_dir/randconfig.log" >&2
+        fi
+        cat "$iteration_dir/randconfig.log" >&2
+
+        # Keep partial output for diagnosis, but never check it as a valid config.
+        if [ -s "$cfg" ]; then
+            cp "$cfg" "$iteration_dir/randconfig.config"
+        fi
 
         rm -f "$cfg"
         exit 2
