@@ -7,24 +7,31 @@ description = "A static analysis tool for Kconfig"
 keywords = ["kconfig", "static", "analysis", "detect"]
 categories = ["development-tools", "config", "command-line-utilities"]
 exclude = ["assets/", "findings/"]
-version = "0.9.0"
+version = "1.0.0"
 edition = "2024"
 
 [workspace]
-members = ["kconfirm-lib", "kconfirm-cli", "kconfirm-linux", "kconfirm-desugar"]
+members = [
+    "kconfirm-lib",
+    "kconfirm-cli",
+    "kconfirm-linux",
+    "kconfirm-desugar",
+    "kconfirm-smt",
+    "z3-ternary"]
 resolver = "3"
 
 [workspace.package]
-rust-version = "1.85.0"
+rust-version = "1.85.1"
 
 [workspace.dependencies]
-nom-kconfig = { git = "https://github.com/Mcdostone/nom-kconfig.git", branch = "fix/depends-on_with_compare", default-features = false, features = [
+nom-kconfig = { git = "https://github.com/julianbraha/nom-kconfig", rev = "1870a9b234543dd4abdd984b849bc9030684f59f", default-features = false, features = [
     "display",
     "kconfiglib",
 ] }
 log = "0.4"
 env_logger = "0.11"
 libc = "0.2"
+z3 = "0.21"
 
 [profile.release]
 lto = true

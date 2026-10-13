@@ -170,7 +170,6 @@ impl DeadLinkChecker {
 
 #[derive(Clone)]
 pub struct Context {
-    pub arch: Option<String>,
     pub definition_condition: Vec<Expression>,
     pub visibility: Vec<Option<Expression>>,
     pub dependencies: Vec<Expression>,
@@ -178,9 +177,8 @@ pub struct Context {
 }
 
 impl Context {
-    fn with_arch(arch: Option<String>) -> Context {
+    fn new() -> Context {
         Context {
-            arch,
             definition_condition: vec![],
             visibility: vec![],
             dependencies: vec![],
@@ -246,9 +244,8 @@ fn recurse_entries(
 /// Traverses `nom-kconfig` AST entries to construct the symbol table, and run checks on config
 /// option definitions.
 ///
-/// This function recursively processes [`Entry`] elements under a specific
-/// architecture context provided by the `arch` argument. It evaluates using the checks passed in
-/// the `args`, and builds up the symbol table [`SymbolTable`].
+/// This function processes one target using the checks in `args` and populates
+/// its symbol table. The caller attaches architecture labels to the findings.
 ///
 /// Findings from the checks are gathered and returned as an array of [`Finding`].
 ///
@@ -261,18 +258,13 @@ fn recurse_entries(
 /// let mut symtab = SymbolTable::new();
 /// let entries = vec![]; // Populated by the nom-kconfig parser.
 ///
-/// let findings = analyze(&args, &mut symtab, Some("x86".to_string()), entries);
+/// let findings = analyze(&args, &mut symtab, entries);
 /// println!("Analysis on config option definitions complete. Total warnings: {}", findings.len());
 /// ```
-pub fn analyze(
-    args: &AnalysisArgs,
-    symtab: &mut SymbolTable,
-    arch: Option<String>,
-    entries: Vec<Entry>,
-) -> Vec<Finding> {
+pub fn analyze(args: &AnalysisArgs, symtab: &mut SymbolTable, entries: Vec<Entry>) -> Vec<Finding> {
     let mut findings = Vec::new();
 
-    let ctx = Context::with_arch(arch);
+    let ctx = Context::new();
 
     recurse_entries(args, symtab, entries, ctx, &mut findings);
 
@@ -328,7 +320,7 @@ fn handle_config(
                         args,
                         findings,
                         &config_symbol,
-                        &ctx.arch,
+                        &None,
                         format!("ungrouped default {}", db),
                     );
                 }
@@ -352,7 +344,7 @@ fn handle_config(
                         args,
                         findings,
                         &config_symbol,
-                        &ctx.arch,
+                        &None,
                         format!("ungrouped default {}", &dt),
                     );
 
@@ -377,7 +369,7 @@ fn handle_config(
                         args,
                         findings,
                         &config_symbol,
-                        &ctx.arch,
+                        &None,
                         format!("ungrouped default {}", &d),
                     );
 
@@ -444,7 +436,7 @@ fn handle_config(
                     args,
                     findings,
                     &config_symbol,
-                    &ctx.arch,
+                    &None,
                     format!("ungrouped default {}", &default),
                 );
 
@@ -457,7 +449,7 @@ fn handle_config(
                     args,
                     findings,
                     &config_symbol,
-                    &ctx.arch,
+                    &None,
                     format!("ungrouped dependency {}", &depends_on),
                 );
 
@@ -469,7 +461,7 @@ fn handle_config(
                     args,
                     findings,
                     &config_symbol,
-                    &ctx.arch,
+                    &None,
                     format!("ungrouped select {}", &select),
                 );
 
@@ -481,7 +473,7 @@ fn handle_config(
                     args,
                     findings,
                     &config_symbol,
-                    &ctx.arch,
+                    &None,
                     format!("ungrouped imply {}", imply),
                 );
 
@@ -496,7 +488,7 @@ fn handle_config(
                     args,
                     findings,
                     &config_symbol,
-                    &ctx.arch,
+                    &None,
                     format!("ungrouped range {}", r),
                 );
 
@@ -510,7 +502,7 @@ fn handle_config(
                     args,
                     findings,
                     Some(&config_symbol),
-                    &ctx.arch,
+                    &None,
                     "help text",
                 );
             }
@@ -580,7 +572,6 @@ fn handle_config(
         kconfig_ranges,
         kconfig_defaults,
         child_ctx.visibility.clone(),
-        child_ctx.arch.clone(),
         child_ctx.definition_condition.clone(),
         None,
         kconfig_selects
@@ -608,7 +599,6 @@ fn handle_config(
                 Vec::new(),
                 Vec::new(),
                 Vec::new(),
-                child_ctx.arch.clone(),
                 child_ctx.definition_condition.clone(),
                 Some((config_symbol.clone(), None)),
                 Vec::new(),
@@ -622,7 +612,6 @@ fn handle_config(
                     Vec::new(),
                     Vec::new(),
                     Vec::new(),
-                    child_ctx.arch.clone(),
                     child_ctx.definition_condition.clone(),
                     Some((config_symbol.clone(), Some(select_condition))),
                     Vec::new(),
@@ -708,7 +697,6 @@ fn handle_choice(
 
     let choice_data = ChoiceData {
         //inner_vars: contained_vars,
-        arch: child_ctx.arch.clone(),
         visibility: choice_visibility_condition,
         dependencies: child_ctx.dependencies,
         defaults,

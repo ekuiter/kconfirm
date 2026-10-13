@@ -38,6 +38,10 @@ use std::{
 pub enum Check {
     /// `nom-kconfig` failed to parse the Kconfig.
     FailedParse,
+    /// The SMT model could not be built or solved reliably.
+    FailedModel,
+    /// A reachable select can force an option past its dependencies.
+    UnmetDependency,
     /// Style: attributes aren't grouped by type.
     UngroupedAttribute,
     /// Dead link found in `help` attribute text.
@@ -86,6 +90,8 @@ impl Check {
     pub fn as_str(self) -> &'static str {
         match self {
             Check::FailedParse => "failed_parse",
+            Check::FailedModel => "failed_model",
+            Check::UnmetDependency => "unmet_dependency",
             Check::UngroupedAttribute => "ungrouped_attribute",
             Check::DeadLink => "dead_link",
             Check::SelectVisible => "select_visible",
@@ -122,6 +128,8 @@ impl Check {
 pub fn parse_check(name: &str) -> Option<Check> {
     match name {
         "failed_parse" => Some(Check::FailedParse),
+        "failed_model" => Some(Check::FailedModel),
+        "unmet_dependency" | "unmet_deps" => Some(Check::UnmetDependency),
         "ungrouped_attribute" => Some(Check::UngroupedAttribute),
         "dead_link" => Some(Check::DeadLink),
         "select_visible" => Some(Check::SelectVisible),
@@ -416,15 +424,15 @@ pub fn check_variable_info(
         ));
     }
 
-    if args.is_enabled(Check::DuplicateImply) {
+    if args.is_enabled(Check::DuplicateImply) || args.is_enabled(Check::DeadImply) {
         findings.extend(check_duplicate_implies(arch_specific, var_symbol, info));
     }
 
-    if args.is_enabled(Check::DuplicateRange) {
+    if args.is_enabled(Check::DuplicateRange) || args.is_enabled(Check::DeadRange) {
         findings.extend(check_duplicate_ranges(arch_specific, var_symbol, info));
     }
 
-    if args.is_enabled(Check::DuplicateSelect) {
+    if args.is_enabled(Check::DuplicateSelect) || args.is_enabled(Check::DeadSelect) {
         findings.extend(check_duplicate_selects(arch_specific, var_symbol, info));
     }
 
@@ -443,70 +451,30 @@ pub fn check_variable_info(
         findings.extend(check_reverse_ranges(arch_specific, var_symbol, info));
     }
 
+    findings.retain(|finding| args.is_enabled(finding.check));
     findings
 }
 
 // TODO: also check if a config option in one arch unconditionally references a config option that only exists in another arch (need SMT for this first)
 pub fn check_select_visible(var_symbol: &str, info: &TypeInfo) -> Vec<Finding> {
     let mut findings = Vec::new();
-
-    // only interested in the options that are selected
-    if info.selected_by.is_empty() {
-        return Vec::new();
-    }
-
-    for (selector, select_info) in &info.selected_by {
-        for (arch, _cond) in select_info {
-            // NOTE: we don't care if the select is conditional or unconditional, just the selectee's visibility
-
-            // at this point, we know that `selector` unconditionally selects `var_symbol`
-            // now, we need to check if `var_symbol` is unconditionally visible
-
-            let message = format!(
-                "selects the visible {}; consider using 'depends on' or 'imply' instead",
-                var_symbol
-            );
-
-            // match the architecture that the select happens under with the architecture of the unconditional visibility
-            match info.attribute_defs.get(arch) {
-                None => {
-                    // there's no config option definition specifically under the architecture that this config option gets selected,
-                    // so let's check if it's defined for all archs (arch-independent)
-                    if let Some(no_arch_attribute_def) = info.attribute_defs.get(&None) {
-                        for (if_conditions, attributes) in no_arch_attribute_def {
-                            if if_conditions.is_empty() && attributes.visibility.is_empty() {
-                                // empty visiblity means that it is unconditionally visible, within the current arch (assuming arch is not `None`)
-
-                                findings.push(Finding {
-                                    severity: Severity::Warning,
-                                    check: Check::SelectVisible,
-                                    symbol: Some(selector.to_owned()),
-                                    message: message.clone(),
-                                    arch: arch.to_owned(),
-                                });
-                            }
-                        }
-                    }
-                }
-                Some(cur_arch_attribute_def) => {
-                    for (if_conditions, attributes) in cur_arch_attribute_def {
-                        if if_conditions.is_empty() && attributes.visibility.is_empty() {
-                            // empty visiblity means that it is unconditionally visible, within the current arch (assuming arch is not `None`)
-
-                            findings.push(Finding {
-                                severity: Severity::Warning,
-                                check: Check::SelectVisible,
-                                symbol: Some(selector.to_owned()),
-                                message: message.clone(),
-                                arch: arch.to_owned(),
-                            });
-                        }
-                    }
+    for (selector, selects) in &info.selected_by {
+        for _ in selects {
+            for (conditions, attributes) in &info.attribute_defs {
+                if conditions.is_empty() && attributes.visibility.is_empty() {
+                    findings.push(Finding {
+                        severity: Severity::Warning,
+                        check: Check::SelectVisible,
+                        symbol: Some(selector.clone()),
+                        message: format!(
+                            "selects the visible {var_symbol}; consider using 'depends on' or 'imply' instead"
+                        ),
+                        arch: None,
+                    });
                 }
             }
         }
     }
-
     findings
 }
 

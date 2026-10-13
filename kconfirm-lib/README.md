@@ -10,7 +10,7 @@ configuration language used by the Linux kernel, coreboot, U-Boot, BusyBox, and 
 projects.
 
 `kconfirm-lib` takes parsed Kconfig (from [`nom-kconfig`](https://crates.io/crates/nom-kconfig)),
-builds a symbol table of every `config` option across files and architectures, and runs a set of
+builds a separate symbol table for each target's `config` options, and runs a set of
 checks, such as for dead code, select-visible misuse and more. Findings from this crate
 have resulted in [accepted patches to the Linux
 kernel](https://github.com/julianbraha/kconfirm#submitted-patches-linux), coreboot, U-Boot, and
@@ -124,11 +124,16 @@ by priority.
 
 ## Multi-file and multi-architecture analysis
 
-[`check_kconfig`] accepts a `Vec<(Option<String>, KconfigInput)>`. Each entry is one root Kconfig
-file paired with the name of the architecture-specific config option it belongs to. This models
-the Linux kernel, where the same option can be redefined per architecture: pass the top-level
-`Kconfig` with `None`, and each `arch/<arch>/Kconfig` with `Some("X86")`, `Some("ARM64")`, and so
-on. The symbol table is shared across all inputs, so identical findings across architectures are collapsed into a single line by [`print_findings`] (e.g. `[x86, arm64]`).
+[`check_kconfig`] accepts a `Vec<(Option<String>, KconfigInput)>`. Each entry is an
+input paired with an optional target label. Inputs with the same label share a
+symbol table; different labels use independent tables. For Linux, read the complete
+top-level `Kconfig` once per architecture with `SRCARCH` set, and label those inputs
+`Some("x86")`, `Some("arm64")`, and so on. A project's single target can use `None`.
+
+The symbol table contains no architecture fields. Findings receive their labels
+after each target is analyzed, and [`print_findings`] groups identical findings
+across architectures (e.g. `[arm64, x86]`). The CLI performs this analysis in a
+loop, retaining only the findings between targets.
 
 ## Feature flags
 
@@ -143,8 +148,9 @@ on. The symbol table is shared across all inputs, so identical findings across a
 
 For callers that need finer control than [`check_kconfig`], the building blocks are public:
 
-- [`analyze`] — traverse already-parsed `nom-kconfig` entries for one architecture, populating a
-  [`SymbolTable`] and returning per-definition findings.
+- [`analyze`] — traverse raw `nom-kconfig` entries for one target, populating a
+  [`SymbolTable`] and returning per-definition findings. Its arguments are
+  `(&AnalysisArgs, &mut SymbolTable, Vec<Entry>)`; callers attach architecture labels.
 - [`SymbolTable`], [`TypeInfo`], [`AttributeDef`], [`ChoiceData`] — the data model describing every
   `config` option, its merged attributes across partial definitions, and `choice` blocks.
 

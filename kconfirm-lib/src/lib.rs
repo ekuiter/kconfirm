@@ -49,9 +49,9 @@ pub use symbol_table::*;
 /// let contents = kconfig_file.read_to_string()?;
 /// let input = KconfigInput::new_extra(&contents, kconfig_file);
 ///
-/// // Pair each input with an optional architecture-specific config option
-/// // (e.g. `Some("X86".to_string())` for `arch/x86/Kconfig`); use `None` when
-/// // the input is not architecture-specific.
+/// // Pair each complete target input with an optional architecture label.
+/// // Linux callers read the top-level Kconfig with SRCARCH set for each target;
+/// // use None for a project with a single target.
 /// let findings = check_kconfig(checks, vec![(None, input)]);
 /// print_findings(findings);
 /// # Ok(())
@@ -61,43 +61,42 @@ pub fn check_kconfig(
     args: AnalysisArgs,
     kconfig_files: Vec<(Option<String>, KconfigInput)>,
 ) -> Vec<Finding> {
+    // Inputs for one target share a table; different architectures never do.
+    let mut targets = std::collections::BTreeMap::new();
+    for (arch, input) in kconfig_files {
+        targets.entry(arch).or_insert_with(Vec::new).push(input);
+    }
     let mut findings = Vec::new();
-    let mut symbol_table = SymbolTable::new();
-
-    for (arch_config_option, kconfig_file) in kconfig_files {
-        match parse_kconfig(kconfig_file) {
-            Ok(parsed) => {
-                let entries: Vec<Entry> = parsed.1.entries;
-                findings.extend(analyze(
-                    &args,
-                    &mut symbol_table,
-                    arch_config_option,
-                    entries,
-                ));
-            }
-            Err(e) => {
-                findings.push(Finding {
+    for (arch, inputs) in targets {
+        let mut target_findings = Vec::new();
+        let mut symbol_table = SymbolTable::new();
+        for input in inputs {
+            match parse_kconfig(input) {
+                Ok(parsed) => {
+                    let entries: Vec<Entry> = parsed.1.entries;
+                    target_findings.extend(analyze(&args, &mut symbol_table, entries));
+                }
+                Err(e) => target_findings.push(Finding {
                     severity: Severity::Fatal,
                     check: Check::FailedParse,
                     symbol: None,
-                    message: format!("Failed to parse kconfig, error is: {}", e),
+                    message: format!("Failed to parse kconfig, error is: {e}"),
                     arch: None,
-                });
+                }),
             }
         }
-    }
-
-    for (var_symbol, type_info) in &symbol_table.raw {
-        for (arch_specific, redefinitions) in &type_info.attribute_defs {
-            for (_definition_condition, info) in redefinitions {
-                findings.extend(check_variable_info(&args, var_symbol, arch_specific, info));
+        for (symbol, info) in &symbol_table.raw {
+            for (_, definition) in &info.attribute_defs {
+                target_findings.extend(check_variable_info(&args, symbol, &None, definition));
+            }
+            if args.is_enabled(Check::SelectVisible) {
+                target_findings.extend(check_select_visible(symbol, info));
             }
         }
-
-        if args.is_enabled(Check::SelectVisible) {
-            findings.extend(check_select_visible(var_symbol, type_info));
+        for finding in &mut target_findings {
+            finding.arch = arch.clone();
         }
+        findings.extend(target_findings);
     }
-
     findings
 }

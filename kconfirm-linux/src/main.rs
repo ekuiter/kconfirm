@@ -160,10 +160,12 @@ fn main() -> io::Result<()> {
         Check::DuplicateRange,
         Check::DeadRange,
         Check::DuplicateSelect,
+        Check::DeadSelect,
         Check::DeadDefault,
         Check::ConstantCondition,
         Check::DuplicateDefault,
         Check::DuplicateImply,
+        Check::DeadImply,
         Check::ReverseRange,
     ]
     .into_iter()

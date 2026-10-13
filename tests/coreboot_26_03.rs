@@ -43,12 +43,11 @@ fn test_coreboot_kconfig_analysis_v24_12() {
             "kconfirm-cli",
             "--quiet",
             "--",
+            "--lint",
             "--coreboot-dir-path",
         ])
         .arg(&extract_dir)
         .args([
-            "--disable-check",
-            "all",
             "--enable-check",
             "duplicate_default_value,ungrouped_attribute",
         ])

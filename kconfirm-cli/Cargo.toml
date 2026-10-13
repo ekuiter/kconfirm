@@ -7,8 +7,12 @@ rust-version.workspace = true
 [dependencies]
 kconfirm-lib = { path = "../kconfirm-lib", features = ["coreboot"] }
 kconfirm-linux = { path = "../kconfirm-linux" }
+kconfirm-smt = { path = "../kconfirm-smt" }
+kconfirm-desugar = { path = "../kconfirm-desugar" }
+z3-ternary = { path = "../z3-ternary" }
 
 nom-kconfig = { workspace = true, features = ["glob-wildcard"] }
+z3 = { workspace = true }
 log = { workspace = true }
 clap = { version = "4.6", features = ["derive"] }
 env_logger = "0.11"

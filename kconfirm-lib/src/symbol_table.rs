@@ -13,12 +13,11 @@ use std::collections::{
 };
 
 type KconfigSymbol = String;
-type Arch = Option<String>;
 type Cond = Option<Expression>;
 
-/// All of the type info of a Kconfig symbol. Since `config` options can have their attributes
-/// spread out across multiple definitions, and can also be redefined in each architecture, the
-/// Vectors are used for appending more information, and the architecture is tracked in each field.
+/// The raw definitions of a Kconfig symbol in one analysis target.
+/// Partial definitions retain source order and conditions for linting.
+/// Analyze each architecture with a separate symbol table.
 ///
 /// # Examples
 ///
@@ -39,14 +38,12 @@ pub struct TypeInfo {
     /// (e.g. dangling references, or for symbols without types).
     pub kconfig_type: Option<Type>,
 
-    /// Maps the selector of this symbol to the architecture and the `select` condition.
-    /// If the architecture is `None`, then it's not arch-specific.
+    /// Maps each selector to its `select` conditions.
     /// If the condition is `None`, then the `select` is unconditional.
-    pub selected_by: HashMap<KconfigSymbol, Vec<(Arch, Cond)>>,
+    pub selected_by: HashMap<KconfigSymbol, Vec<Cond>>,
 
-    /// Maps the architecture to the various partial definitions of the `config` option with their
-    /// condition expressions.
-    pub attribute_defs: HashMap<Arch, Vec<(Vec<Expression>, AttributeDef)>>,
+    /// Partial definitions of the option, with their enclosing `if` conditions.
+    pub attribute_defs: Vec<(Vec<Expression>, AttributeDef)>,
 }
 
 /// Keeps track of the attributes of a `config` option. Each option may have multiple, partial
@@ -92,7 +89,7 @@ impl TypeInfo {
         Self {
             kconfig_type: None,
             selected_by: HashMap::new(),
-            attribute_defs: HashMap::new(),
+            attribute_defs: Vec::new(),
         }
     }
 
@@ -106,7 +103,6 @@ impl TypeInfo {
         kconfig_ranges: Vec<Range>,
         kconfig_defaults: Vec<DefaultAttribute>,
         visibility: Vec<Option<OrExpression>>,
-        arch: Option<String>,
         definition_condition: Vec<OrExpression>,
         selected_by: Option<(KconfigSymbol, Cond)>,
         selects: Vec<(KconfigSymbol, Cond)>,
@@ -128,7 +124,7 @@ impl TypeInfo {
 
         // selected_by merge
         if let Some(sb) = selected_by {
-            merge_selected_by(&mut self.selected_by, arch.clone(), sb);
+            merge_selected_by(&mut self.selected_by, sb);
         }
 
         // variable_info merge:
@@ -143,7 +139,6 @@ impl TypeInfo {
         {
             insert_variable_info(
                 &mut self.attribute_defs,
-                arch,
                 definition_condition,
                 AttributeDef {
                     kconfig_dependencies: raw_constraints,
@@ -169,16 +164,13 @@ impl TypeInfo {
 ///
 /// // Captured while traversing a `choice` block during analysis.
 /// let choice_block = ChoiceData {
-///     arch: Some("arm64".to_string()),
 ///     visibility: None,
 ///     dependencies: vec![],
 ///     defaults: vec![],
 /// };
-/// assert_eq!(choice_block.arch.as_deref(), Some("arm64"));
+/// assert!(choice_block.dependencies.is_empty());
 /// ```
 pub struct ChoiceData {
-    /// The architecture that the `choice` appears in.
-    pub arch: Arch,
     /// The visibility condition of the `choice`.
     pub visibility: Cond,
     /// The list of dependencies for the `choice`. In Kconfig semantics, contained `config` options
@@ -244,7 +236,6 @@ impl SymbolTable {
         kconfig_ranges: Vec<Range>,
         kconfig_defaults: Vec<DefaultAttribute>,
         visibility: Vec<Option<OrExpression>>,
-        arch: Arch,
         definition_condition: Vec<OrExpression>,
         selected_by: Option<(KconfigSymbol, Cond)>,
         selects: Vec<(KconfigSymbol, Cond)>,
@@ -261,7 +252,6 @@ impl SymbolTable {
                     kconfig_ranges,
                     kconfig_defaults,
                     visibility,
-                    arch,
                     definition_condition,
                     selected_by,
                     selects,
@@ -279,7 +269,6 @@ impl SymbolTable {
                     kconfig_ranges,
                     kconfig_defaults,
                     visibility,
-                    arch,
                     definition_condition,
                     selected_by,
                     selects,
@@ -292,24 +281,17 @@ impl SymbolTable {
 
 /// Adds the selector `config` symbol to the `selected_by` list for this `config` option into the
 /// symbol table.
-fn merge_selected_by(
-    map: &mut HashMap<String, Vec<(Arch, Cond)>>,
-    arch: Arch,
-    selected_by: (KconfigSymbol, Cond),
-) {
+fn merge_selected_by(map: &mut HashMap<String, Vec<Cond>>, selected_by: (KconfigSymbol, Cond)) {
     map.entry(selected_by.0)
         .or_default() // empty vec
-        .push((arch, selected_by.1));
+        .push(selected_by.1);
 }
 
 /// Inserts the type information into the symbol table.
 fn insert_variable_info(
-    map: &mut HashMap<Arch, Vec<(Vec<Expression>, AttributeDef)>>,
-    arch: Arch,
+    definitions: &mut Vec<(Vec<Expression>, AttributeDef)>,
     definition_condition: Vec<Expression>,
     info: AttributeDef,
 ) {
-    map.entry(arch)
-        .or_default() // empty vec
-        .push((definition_condition, info));
+    definitions.push((definition_condition, info));
 }

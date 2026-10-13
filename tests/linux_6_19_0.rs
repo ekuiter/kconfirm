@@ -1,5 +1,20 @@
+use std::collections::BTreeSet;
 use std::fs;
 use std::process::Command;
+
+fn findings_for_arch(output: &str, arch: &str) -> BTreeSet<String> {
+    output
+        .lines()
+        .filter_map(|line| {
+            let (head, rest) = line.split_once("] [")?;
+            let (arches, message) = rest.split_once(']')?;
+            arches
+                .split(',')
+                .any(|item| item.trim() == arch)
+                .then(|| format!("{head}]{message}"))
+        })
+        .collect()
+}
 
 #[test]
 // system test
@@ -43,6 +58,7 @@ fn test_linux_kconfig_analysis_v6_19() {
             "kconfirm-cli",
             "--quiet",
             "--",
+            "--lint",
             "--linux-dir-path",
         ])
         .arg(&extract_dir)
@@ -63,12 +79,39 @@ fn test_linux_kconfig_analysis_v6_19() {
     );
 
     let stdout = String::from_utf8_lossy(&output.stdout);
-    let line_count = stdout.lines().count();
+    assert!(!stdout.contains("[failed_parse]"), "{stdout}");
+    let all_x86 = findings_for_arch(&stdout, "x86");
+    assert!(!all_x86.is_empty(), "expected Linux lint findings");
 
+    // Per-target analysis changes grouping and the old global line count. The
+    // x86 results must be identical whether analyzed alone or in the full loop.
+    let isolated = Command::new("cargo")
+        .args([
+            "run",
+            "-p",
+            "kconfirm-cli",
+            "--quiet",
+            "--",
+            "--lint",
+            "--linux-dir-path",
+        ])
+        .arg(&extract_dir)
+        .args([
+            "--arch",
+            "x86",
+            "--enable-check",
+            "duplicate_default_value,ungrouped_attribute",
+            "--disable-check",
+            "dead_link",
+        ])
+        .output()
+        .expect("failed to run cargo");
     assert!(
-        line_count == 2170,
-        "expected 2170 lines, got {}\n See output:\n{}",
-        line_count,
-        stdout
+        isolated.status.success(),
+        "{}",
+        String::from_utf8_lossy(&isolated.stderr)
     );
+    let isolated = String::from_utf8_lossy(&isolated.stdout);
+    assert!(!isolated.contains("[failed_parse]"), "{isolated}");
+    assert_eq!(all_x86, findings_for_arch(&isolated, "x86"));
 }

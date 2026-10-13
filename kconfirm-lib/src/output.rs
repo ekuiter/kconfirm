@@ -22,7 +22,7 @@ pub enum Severity {
     /// Issues that do not cause build failures, but are still unwanted.
     Warning = 1,
     /// Hard errors, such as unmet dependency bugs or cyclical dependencies.
-    /// Currently unused.
+    /// Used by some findings from confirm mode.
     Error = 2,
     /// A critical error in the Kconfig, such as a parse failure.
     /// May prevent checks from running on the rest of the Kconfig.
@@ -61,8 +61,8 @@ pub struct Finding {
     pub symbol: Option<String>,
     /// A human-readable diagnostic message, intended for use when displaying the finding to the user.
     pub message: String,
-    /// The architecture affected by the finding. `None` represents a finding that affects all
-    /// architectures (not arch-specific).
+    /// The target architecture, attached after analysis. `None` denotes an analysis
+    /// without an architecture label, such as a generic Kconfig project.
     pub arch: Option<String>,
 }
 

@@ -1,0 +1,22 @@
+# SPDX-License-Identifier: GPL-2.0
+[package]
+name = "kconfirm-smt"
+version = "1.0.0"
+edition = "2024"
+rust-version.workspace = true
+
+[dependencies]
+kconfirm-linux = { path = "../kconfirm-linux" }
+kconfirm-desugar = { path = "../kconfirm-desugar" }
+z3-ternary = { path = "../z3-ternary" }
+
+nom-kconfig = { workspace = true }
+z3 = { workspace = true }
+z3-sys = "0.13"
+log = { workspace = true }
+env_logger = { workspace = true }
+clap = { version = "4", features = ["derive"] }
+
+[features]
+debug = [] # enable debug when you want to view the unsat core
+default = []

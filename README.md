@@ -6,11 +6,12 @@
 # kconfirm
 A static analysis tool for the Kconfig language.
 
-Detect dead code, select-visible misuse, and more.
+Detect dead code, unmet dependencies, and more.
 
 # Usage
 
-Assuming you have Rust, and OpenSSL installed:
+Build with Rust, OpenSSL, pkg-config, and Z3 installed, or enter the provided
+development environment with `nix develop`:
 ```
 # clone this repo
 git clone https://github.com/julianbraha/kconfirm.git
@@ -20,17 +21,45 @@ cd kconfirm
 # compile
 cargo build --release -p kconfirm-cli
 
-# run (for linux):
-./target/release/kconfirm-cli --linux-dir-path RELATIVE_PATH_TO_LINUX_SOURCE
+# run in lint mode (for linux):
+./target/release/kconfirm-cli --lint --linux-dir-path RELATIVE_PATH_TO_LINUX_SOURCE
 
-# run (for coreboot):
-./target/release/kconfirm-cli --coreboot-dir-path RELATIVE_PATH_TO_COREBOOT_SOURCE
+# run in lint mode (for coreboot):
+./target/release/kconfirm-cli --lint --coreboot-dir-path RELATIVE_PATH_TO_COREBOOT_SOURCE
 ```
+
+Choose exactly one mode:
+1. `--lint` runs fast heuristic checks,
+2. `--confirm` uses SMT solving for advanced checks like unmet dependencies. 
+
+Both modes produce their findings in the same structured format.
+
+By default, running on Linux analyzes every architecture with an `arch/<name>/Kconfig` in the source tree, sequentially. Findings are deduplicated across architectures. Use `--arch` to select particular targets:
+```sh
+# all architectures:
+./target/release/kconfirm-cli --confirm --linux-dir-path /path/to/linux
+
+# only x86 and arm64:
+./target/release/kconfirm-cli --confirm --linux-dir-path /path/to/linux --arch x86,arm64
+```
+
+`--enable-check` and `--disable-check` accept repeated or comma-separated check IDs:
+
+```sh
+# disable the unmet dependency check:
+./target/release/kconfirm-cli --confirm --linux-dir-path /path/to/linux --disable-check unmet_dependency
+```
+
+Internal checks that the SMT model is satisfiable produce random solutions to the model (witness files) and saving them is optional. Linux witnesses go under `witnesses/<arch>/`.
+
+Note that `--confirm` mode evaluates Linux's Kconfig preprocessing using the current active toolchain in your environment. 
+
+The `kconfirm-smt` package is available for standalone usage for exporting the model constraints, and loading or dumping preprocessing values.
 
 To enable the check for dead links in the Kconfig `help` texts:
 ```
 # NOTE: this is very slow! It will attempt to visit every link that it finds!
-./target/release/kconfirm-cli --linux-dir-path RELATIVE_PATH_TO_LINUX_SOURCE --check-dead-links
+./target/release/kconfirm-cli --lint --linux-dir-path RELATIVE_PATH_TO_LINUX_SOURCE --enable-check dead_link
 ```
 
 

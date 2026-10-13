@@ -9,7 +9,7 @@ pub fn count_findings(output: &str) -> usize {
 
 pub fn run_cli_on_fixture(path: &std::path::Path, enable: &str, disable: &str) -> String {
     let output = Command::new("cargo")
-        .args(["run", "-p", "kconfirm-cli", "--quiet", "--"])
+        .args(["run", "-p", "kconfirm-cli", "--quiet", "--", "--lint"])
         .args(["--other-kconfig-path"])
         .arg(path)
         .args(["--enable-check", enable, "--disable-check", disable])
