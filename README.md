@@ -66,21 +66,6 @@ To enable the check for dead links in the Kconfig `help` texts:
 ./target/release/kconfirm-cli --lint --linux-dir-path RELATIVE_PATH_TO_LINUX_SOURCE --enable-check dead_link
 ```
 
-To run differential tests between the SMT model and the Kconfig interpreter:
-```sh
-cd kconfirm-smt
-
-# compile
-cargo build --release
-
-# generate random seeds, and save them for reproducibility
-bash generate_random_seeds.sh 10000 > random-seeds.txt
-
-# run differential tests in both directions
-bash differential_test_model_config.sh 10000 random-seeds.txt 300000 < /dev/null
-bash differential_test_randconfig.sh 10000 random-seeds.txt 300000 < /dev/null
-```
-
 ## Submitted Patches: Linux
 
 ### Dead Defaults
