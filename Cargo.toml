@@ -31,7 +31,7 @@ nom-kconfig = { git = "https://github.com/julianbraha/nom-kconfig", rev = "1870a
 log = "0.4"
 env_logger = "0.11"
 libc = "0.2"
-z3 = "0.21"
+z3 = { version = "0.21", features = ["gh-release"] }
 
 [profile.release]
 lto = true
