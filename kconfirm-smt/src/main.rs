@@ -36,6 +36,10 @@ struct Args {
     #[arg(long)]
     seed: Option<u32>,
 
+    /// Z3 solver timeout, in milliseconds (0 disables the timeout).
+    #[arg(long, default_value_t = 0)]
+    solver_timeout_ms: u32,
+
     /// Use macro/function values from FILE for pre-processing, instead of evaluating:
     /// scripts/Kconfig.include from the target linux source and $(...) probes
     /// with the host toolchain.
@@ -85,7 +89,7 @@ fn main() {
             }
         }
     };
-    let status = match run_model(source, mode) {
+    let status = match run_model(source, mode, args.solver_timeout_ms) {
         Ok(None | Some(SatResult::Sat)) => 0,
         Ok(Some(SatResult::Unsat)) => 1,
         Ok(Some(SatResult::Unknown)) => 2,
