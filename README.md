@@ -13,7 +13,7 @@ Detect dead code, unmet dependencies, and more.
 Build with Rust, OpenSSL, pkg-config, and Z3 installed, or enter the provided
 development environment with `nix develop`:
 ```
-# install missing dependencies (or use nix develop)
+# install missing dependencies, e.g. on Ubuntu 24.04 (or use nix develop)
 sudo apt update
 sudo apt install -y pkg-config libssl-dev libz3-dev z3 flex bison
 
