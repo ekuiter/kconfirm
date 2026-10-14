@@ -15,10 +15,11 @@
 #
 # usage (from kconfirm-smt/):
 #   bash generate_random_seeds.sh 2000 > random-seeds.txt
-#   bash differential_test_model_config.sh [RUNS] [SEEDS_FILE]
+#   bash differential_test_model_config.sh [RUNS] [SEEDS_FILE] [SOLVER_TIMEOUT_MS]
 #
 # Uses the first RUNS seeds in file order, including duplicates.
-# Defaults: RUNS=1000, SEEDS_FILE=random-seeds.txt (or $SEEDS_FILE).
+# Defaults: RUNS=1000, SEEDS_FILE=random-seeds.txt (or $SEEDS_FILE),
+# SOLVER_TIMEOUT_MS=0 (no timeout).
 # Set MACRO_CACHE to an existing macro dump to reuse it; otherwise macros are
 # evaluated afresh once per invocation. The values used are always archived.
 
@@ -32,10 +33,11 @@ ARCH="${ARCH:-x86_64}"
 
 RUNS="${1:-1000}"
 SEEDS_FILE="${2:-${SEEDS_FILE:-random-seeds.txt}}"
+SOLVER_TIMEOUT_MS="${3:-${SOLVER_TIMEOUT_MS:-0}}"
 
 # Load once so both directions can reuse exactly the same recorded seed list.
-if [ "$#" -gt 2 ]; then
-    echo "usage: $0 [RUNS] [SEEDS_FILE]" >&2
+if [ "$#" -gt 3 ]; then
+    echo "usage: $0 [RUNS] [SEEDS_FILE] [SOLVER_TIMEOUT_MS]" >&2
     exit 2
 fi
 if [ ! -f "$SEEDS_FILE" ] || [ ! -r "$SEEDS_FILE" ]; then
@@ -124,6 +126,7 @@ fi
     echo "binary: $BINARY"
     echo "arch: $ARCH"
     echo "runs: $RUNS"
+    echo "solver timeout ms: $SOLVER_TIMEOUT_MS"
     echo "seed source: $SEEDS_FILE"
     echo "selected seeds: $RESULTS_DIR/seeds.txt"
     echo "model constraints: $MODEL_FILE"
@@ -145,6 +148,7 @@ fi
 if ! ARCH="$ARCH" "$BINARY" \
     --linux "$LINUX" \
     --output-smt-lib "$MODEL_FILE" \
+    --solver-timeout-ms "$SOLVER_TIMEOUT_MS" \
     --dump-preproc "$PREPROC_FILE" \
     "${macro_args[@]}" \
     > "$RESULTS_DIR/model.log" 2>&1 || [ ! -s "$MODEL_FILE" ] || [ ! -s "$PREPROC_FILE" ]; then
@@ -184,6 +188,7 @@ for i in $(seq 1 "$RUNS"); do
         --output-config "$witness" \
         --output-smt-lib "$constraints" \
         --seed "$seed" \
+        --solver-timeout-ms "$SOLVER_TIMEOUT_MS" \
         --load-preproc "$PREPROC_FILE" \
         --dump-preproc "$preproc" \
         > "$iteration_dir/model.log" 2>&1 || [ ! -s "$witness" ] || [ ! -s "$constraints" ] || [ ! -s "$preproc" ]; then
@@ -275,6 +280,7 @@ done
     echo "reverse differential testing complete"
     echo "date: $(date -Iseconds)"
     echo "total runs: $RUNS"
+    echo "solver timeout ms: $SOLVER_TIMEOUT_MS"
     echo "successes: $pass"
     echo "failures: $fail"
     echo "model failures: $model_fail"
