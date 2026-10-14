@@ -183,7 +183,8 @@ for i in $(seq 1 "$RUNS"); do
 
 
     # Write directly into the archive so failed attempts retain their artifacts.
-    if ! ARCH="$ARCH" "$BINARY" \
+    start_ns=$(date +%s%N)
+    ARCH="$ARCH" "$BINARY" \
         --linux "$LINUX" \
         --output-config "$witness" \
         --output-smt-lib "$constraints" \
@@ -191,17 +192,31 @@ for i in $(seq 1 "$RUNS"); do
         --solver-timeout-ms "$SOLVER_TIMEOUT_MS" \
         --load-preproc "$PREPROC_FILE" \
         --dump-preproc "$preproc" \
-        > "$iteration_dir/model.log" 2>&1 || [ ! -s "$witness" ] || [ ! -s "$constraints" ] || [ ! -s "$preproc" ]; then
+        > "$iteration_dir/model.log" 2>&1
+    model_status=$?
+    if [ "$model_status" -eq 0 ] &&
+       { [ ! -s "$witness" ] || [ ! -s "$constraints" ] || [ ! -s "$preproc" ]; }; then
+        model_status=2
+    fi
 
+    end_ns=$(date +%s%N)
+    echo "$((end_ns - start_ns))" > "$iteration_dir/runtime.txt"
+
+    if [ "$model_status" -ne 0 ]; then
         model_fail=$((model_fail + 1))
         fail=$((fail + 1))
 
-        echo "MODEL_FAILED" > "$iteration_dir/status.txt"
+        if grep -q 'solver returned unknown' "$iteration_dir/model.log"; then
+            status="TIMEOUT"
+        else
+            status="MODEL_FAILED"
+        fi
+        echo "$status" > "$iteration_dir/status.txt"
 
         cp "$iteration_dir/model.log" \
             "$FAILURES_DIR/model-seed$seed.log"
 
-        echo "[$i/$RUNS] MODEL FAILED (seed $seed)"
+        echo "[$i/$RUNS] $status (seed $seed)"
 
         rm -rf "$work"
         continue
