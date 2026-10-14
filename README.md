@@ -13,6 +13,10 @@ Detect dead code, unmet dependencies, and more.
 Build with Rust, OpenSSL, pkg-config, and Z3 installed, or enter the provided
 development environment with `nix develop`:
 ```
+# install missing dependencies, e.g. on Ubuntu 24.04 (or use nix develop)
+sudo apt update
+sudo apt install -y pkg-config libssl-dev libz3-dev z3 flex bison
+
 # clone this repo
 git clone https://github.com/julianbraha/kconfirm.git
 
@@ -61,7 +65,6 @@ To enable the check for dead links in the Kconfig `help` texts:
 # NOTE: this is very slow! It will attempt to visit every link that it finds!
 ./target/release/kconfirm-cli --lint --linux-dir-path RELATIVE_PATH_TO_LINUX_SOURCE --enable-check dead_link
 ```
-
 
 ## Submitted Patches: Linux
 

@@ -17,6 +17,7 @@ use std::path::PathBuf;
 use std::str::FromStr;
 use z3::{
     Model,
+    Params,
     SatResult,
     Solver, //
 };
@@ -39,6 +40,7 @@ pub use crate::kconfig_to_smt::{
 use crate::macro_eval::MacroEvaluator;
 use crate::macro_rewrite::rewrite_entries;
 use nom_kconfig::attribute::OrExpression;
+use std::time::Instant;
 
 mod config_input;
 mod kconfig_to_smt;
@@ -256,7 +258,11 @@ pub fn encode_source(source: Source) -> SmtModel {
 
 /// Build or load a model, then export it or check its satisfiability.
 /// Returns `None` when only exporting constraints, without a SAT check.
-pub fn run_model(source: ModelSource, mode: RunMode) -> Result<Option<SatResult>, String> {
+pub fn run_model(
+    source: ModelSource,
+    mode: RunMode,
+    solver_timeout_ms: u32,
+) -> Result<Option<SatResult>, String> {
     // Loaded constraints have no Kconfig source or witness-writing metadata.
     enum PreparedModel {
         Generated(SmtModel),
@@ -350,9 +356,19 @@ pub fn run_model(source: ModelSource, mode: RunMode) -> Result<Option<SatResult>
         return Ok(None);
     }
 
-    info!("Checking satisfiability...");
+    let mut params = Params::new();
+    params.set_u32("timeout", solver_timeout_ms);
+    solver.set_params(&params);
+    info!("Solver timeout (ms): {solver_timeout_ms}");
+
+    let start = Instant::now();
     let result = solver.check();
-    info!("solver result: {result:?}");
+    let elapsed = start.elapsed();
+
+    info!("Solver runtime (seconds): {:.3}", elapsed.as_secs_f64());
+    info!("Solver runtime (ns): {}", elapsed.as_nanos());
+    info!("Solver result: {result:?}");
+
     match result {
         SatResult::Sat => {
             if let RunMode::Model {

@@ -21,3 +21,6 @@ target
 #.idea/
 
 evaluation
+reverse-differential-results
+differential-results
+random-seeds.txt
