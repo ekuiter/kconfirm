@@ -15,6 +15,7 @@ use std::collections::{
 };
 use std::path::PathBuf;
 use std::str::FromStr;
+use z3::ast::Ast;
 use z3::{
     Model,
     Params,
@@ -1154,7 +1155,7 @@ fn model_int_option(
         ));
         assert_tracked(
             solver,
-            z3_ternary::bool_and_all(&definitions),
+            z3_ternary::bool_and_all(&definitions).simplify(),
             format!("untouched:{symbol}"),
         );
         untouched
