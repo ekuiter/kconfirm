@@ -24,7 +24,7 @@ resolver = "3"
 rust-version = "1.85.1"
 
 [workspace.dependencies]
-nom-kconfig = { git = "https://github.com/julianbraha/nom-kconfig", rev = "2882d6929ee4a24126ee0f7e7be8366f0c6aeb62", default-features = false, features = [
+nom-kconfig = { git = "https://github.com/julianbraha/nom-kconfig", rev = "899e21e036f148c5cc97cf9a7743219f6fb9bee6", default-features = false, features = [
     "display",
     "kconfiglib",
 ] }
