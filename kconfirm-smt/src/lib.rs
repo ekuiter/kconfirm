@@ -439,7 +439,20 @@ fn encode(mut symbol_table: SymbolTable) -> SmtModel {
                 // int and hex options are one unbounded z3 integer each. hex
                 // values are converted from base 16 to base 10 on the way in;
                 // the .config writer formats them back to base 16.
-                Type::Int(_) | Type::Hex(_) => Z3Types::Integer(z3_int::new_const(symbol.as_str())),
+                Type::Int(_) | Type::Hex(_) => {
+                    let value = z3_int::new_const(symbol.as_str());
+                    let (lower, upper) = if matches!(t, Type::Hex(_)) {
+                        (z3_int::from_u64(0), z3_int::from_u64(u64::MAX))
+                    } else {
+                        (z3_int::from_i64(i64::MIN), z3_int::from_i64(i64::MAX))
+                    };
+                    assert_tracked(
+                        &solver,
+                        z3_ternary::bool_and(&value.ge(&lower), &value.le(&upper)),
+                        format!("domain:{symbol}:bounds"),
+                    );
+                    Z3Types::Integer(value)
+                }
 
                 Type::DefString(_) | Type::DefHex(_) | Type::DefInt(_) => {
                     todo!("consider supporting kconfiglib extension")
@@ -970,15 +983,14 @@ impl SmtModel {
 
 /// Builds the constraints for one int/hex option
 ///
-/// The option is one unbounded integer variable:
+/// The option is one integer variable, already bounded to i64 (int) or u64 (hex):
 ///   - dependencies are n: the value is 0, regardless of range,
 ///   - deps met but non-visible: the value is the untouched value: the
 ///     first default whose condition is satisfied (m or y), clamped to the
 ///     active range by checking the lower bound first, then the upper bound;
 ///     with no active default, the initial numeric value 0 is clamped the
 ///     same way,
-///   - visible: free within the active range, and unconstrained
-///     when no range is active
+///   - visible: free within the type bounds and the active range, if any
 ///
 /// Ranges follow declaration order exactly like defaults: the first range
 /// whose condition is satisfied is the active one.
@@ -1174,8 +1186,7 @@ fn model_int_option(
             &value.eq(&untouched),
         ),
     ];
-    // visible: the user is free within the active range, and unconstrained
-    // when no range is active
+    // visible: the active range further restricts the option's type bounds
     for (effective_range, lower, upper) in &effective_ranges {
         clauses.push(z3_ternary::bool_implies(
             &z3_ternary::bool_and(&visible, effective_range),
