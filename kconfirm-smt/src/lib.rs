@@ -78,8 +78,7 @@ pub enum RunMode {
     Model {
         config_output: Option<PathBuf>,
         constraints_output: PathBuf,
-        /// Randomize the Z3 solver's decision phases with this seed, so each
-        /// run yields a different witness (for differential testing).
+        /// Seed Z3's randomized search.
         seed: Option<u32>,
     },
     /// For differential testing: read an existing .config (e.g. from
@@ -273,18 +272,14 @@ pub fn run_model(
         },
     }
 
-    // diverse witnesses: with a seed, the solver picks decision phases at
-    // random instead of defaulting, so every seed yields a different model
-    // (must be set before any solver is created)
+    // Set the random seeds before creating a solver.
     if let RunMode::Model {
         seed: Some(seed), ..
     } = &mode
     {
         let seed = seed.to_string();
         z3::set_global_param("smt.random_seed", &seed);
-        z3::set_global_param("smt.phase_selection", "5"); // random phase
         z3::set_global_param("sat.random_seed", &seed);
-        z3::set_global_param("sat.phase", "random");
     }
 
     let model = match source {

@@ -32,7 +32,7 @@ struct Args {
           conflicts_with_all = ["output_smt_lib", "output_config", "seed", "load_preproc", "dump_preproc"])]
     load_model: Option<PathBuf>,
 
-    /// Randomize the Z3 solver with this seed.
+    /// Seed Z3's randomized search.
     #[arg(long)]
     seed: Option<u32>,
 
